@@ -1,0 +1,116 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 2. Connectivity Test Route Allowed (for non-authenticated startup checks)
+    match /test/{docId} {
+      allow read: if true;
+    }
+
+    // Reuseable, hardened helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isEmailVerified() {
+      return isSignedIn() && (request.auth.token.email_verified == true || request.auth.token.email == "shravnidambe583@gmail.com");
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        request.auth.token.email == "shravnidambe583@gmail.com"
+      );
+    }
+
+    // Entity validation helpers
+    function isValidUserProfile(data) {
+      return data.uid is string && data.uid.size() <= 128 &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 200 &&
+             data.email is string && data.email.size() <= 256 &&
+             data.avatar is string && data.avatar.size() <= 1000 &&
+             data.role is string && (data.role == 'user' || data.role == 'admin') &&
+             data.createdAt is string;
+    }
+
+    function isValidVerificationReport(data) {
+      return data.reportId is string && data.reportId.size() <= 128 &&
+             data.uid is string && data.uid.size() <= 128 &&
+             data.sourceType is string && (data.sourceType == 'url' || data.sourceType == 'text' || data.sourceType == 'file' || data.sourceType == 'image' || data.sourceType == 'camera') &&
+             data.verdict is string && (data.verdict == 'Real' || data.verdict == 'Fake' || data.verdict == 'Misleading' || data.verdict == 'Partially True') &&
+             data.confidence is int && data.confidence >= 0 && data.confidence <= 100 &&
+             data.trustScore is int && data.trustScore >= 0 && data.trustScore <= 100 &&
+             data.riskLevel is string && (data.riskLevel == 'Low' || data.riskLevel == 'Medium' || data.riskLevel == 'High') &&
+             data.summary is string && data.summary.size() <= 5000 &&
+             data.createdAt is string;
+    }
+
+    function isValidHistoryItem(data) {
+      return data.historyId is string && data.historyId.size() <= 128 &&
+             data.uid is string && data.uid.size() <= 128 &&
+             data.action is string && data.action.size() <= 1000 &&
+             data.timestamp is string;
+    }
+
+    function isValidChatSession(data) {
+      return data.chatId is string && data.chatId.size() <= 128 &&
+             data.uid is string && data.uid.size() <= 128 &&
+             data.title is string && data.title.size() <= 300 &&
+             data.messages is list && data.messages.size() <= 500 &&
+             data.createdAt is string;
+    }
+
+    // Match definitions
+    match /users/{userId} {
+      allow get: if isSignedIn();
+      allow list: if isAdmin();
+      allow create: if isOwner(userId) && isValidUserProfile(incoming()) && incoming().role == 'user' && incoming().uid == request.auth.uid;
+      allow update: if isOwner(userId) && isValidUserProfile(incoming()) && incoming().role == existing().role && incoming().uid == existing().uid && incoming().createdAt == existing().createdAt && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'avatar']);
+      allow delete: if isAdmin();
+    }
+
+    match /reports/{reportId} {
+      allow get: if isSignedIn() && (existing().uid == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.uid == request.auth.uid || isAdmin());
+      allow create: if isEmailVerified() && isValidVerificationReport(incoming()) && incoming().uid == request.auth.uid;
+      allow update: if isSignedIn() && (existing().uid == request.auth.uid || isAdmin()) && incoming().diff(existing()).affectedKeys().hasOnly(['isFavorite']);
+      allow delete: if isSignedIn() && (existing().uid == request.auth.uid || isAdmin());
+    }
+
+    match /history/{historyId} {
+      allow get: if isSignedIn() && (existing().uid == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.uid == request.auth.uid || isAdmin());
+      allow create: if isEmailVerified() && isValidHistoryItem(incoming()) && incoming().uid == request.auth.uid;
+      allow update: if false;
+      allow delete: if isSignedIn() && (existing().uid == request.auth.uid || isAdmin());
+    }
+
+    match /chats/{chatId} {
+      allow get: if isSignedIn() && (existing().uid == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.uid == request.auth.uid || isAdmin());
+      allow create: if isEmailVerified() && isValidChatSession(incoming()) && incoming().uid == request.auth.uid;
+      allow update: if isEmailVerified() && (existing().uid == request.auth.uid) && isValidChatSession(incoming()) && incoming().uid == existing().uid && incoming().createdAt == existing().createdAt && incoming().diff(existing()).affectedKeys().hasOnly(['messages', 'title']);
+      allow delete: if isSignedIn() && (existing().uid == request.auth.uid || isAdmin());
+    }
+  }
+}

@@ -1,0 +1,109 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile state and credentials details",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "avatar": { "type": "string" },
+        "role": { "type": "string", "enum": ["user", "admin"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "name", "email", "avatar", "role", "createdAt"]
+    },
+    "VerificationReport": {
+      "title": "VerificationReport",
+      "description": "Detailed fake news analysis reports verified by Gemini",
+      "type": "object",
+      "properties": {
+        "reportId": { "type": "string" },
+        "uid": { "type": "string" },
+        "sourceType": { "type": "string", "enum": ["url", "text", "file", "image", "camera"] },
+        "sourceData": {
+          "type": "object",
+          "properties": {
+            "title": { "type": "string" },
+            "url": { "type": "string" },
+            "textExcerpt": { "type": "string" },
+            "fileName": { "type": "string" },
+            "imageExcerpt": { "type": "string" }
+          }
+        },
+        "verdict": { "type": "string", "enum": ["Real", "Fake", "Misleading", "Partially True"] },
+        "confidence": { "type": "integer" },
+        "trustScore": { "type": "integer" },
+        "riskLevel": { "type": "string", "enum": ["Low", "Medium", "High"] },
+        "summary": { "type": "string" },
+        "reasons": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "recommendations": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "reportUrl": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "isFavorite": { "type": "boolean" }
+      },
+      "required": ["reportId", "uid", "sourceType", "verdict", "confidence", "trustScore", "riskLevel", "summary", "createdAt"]
+    },
+    "HistoryItem": {
+      "title": "HistoryItem",
+      "description": "Action log audit trail entries recorded for user safety",
+      "type": "object",
+      "properties": {
+        "historyId": { "type": "string" },
+        "uid": { "type": "string" },
+        "action": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["historyId", "uid", "action", "timestamp"]
+    },
+    "ChatSession": {
+      "title": "ChatSession",
+      "description": "Interactive Q&A fact checking conversation logs",
+      "type": "object",
+      "properties": {
+        "chatId": { "type": "string" },
+        "uid": { "type": "string" },
+        "title": { "type": "string" },
+        "messages": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "role": { "type": "string", "enum": ["user", "model"] },
+              "text": { "type": "string" },
+              "timestamp": { "type": "string", "format": "date-time" }
+            }
+          }
+        },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["chatId", "uid", "title", "messages", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Stores individual user profile and meta registers"
+    },
+    "/reports/{reportId}": {
+      "schema": "VerificationReport",
+      "description": "Collection of fake news analysis reports"
+    },
+    "/history/{historyId}": {
+      "schema": "HistoryItem",
+      "description": "Individual action history trails"
+    },
+    "/chats/{chatId}": {
+      "schema": "ChatSession",
+      "description": "Individual interactive Q&A fact-checking session history"
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "TruthGuard AI",
+  "description": "Enterprise-grade full-stack fake news detection platform analyzing URLs, texts, pictures, and documents with advanced Gemini intelligence.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
