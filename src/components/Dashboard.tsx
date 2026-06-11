@@ -26,7 +26,14 @@ export default function Dashboard({ reports, onSelectReport, user }: DashboardPr
   useEffect(() => {
     // Dynamic fetch of metrics and trends from fullstack server
     fetch('/api/analytics/overview')
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+        const contentType = res.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+          throw new Error("Response is not JSON");
+        }
+        return res.json();
+      })
       .then(data => {
         setStats(data.overview);
         setDailyData(data.dailyUsage);

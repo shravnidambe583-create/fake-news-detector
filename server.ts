@@ -158,6 +158,19 @@ function initLocalCache() {
   try {
     const raw = fs.readFileSync(DB_FILE, "utf-8");
     cachedLocalDB = JSON.parse(raw);
+    
+    // Ensure all required default structures exist in physical DB
+    if (!cachedLocalDB.users) cachedLocalDB.users = [];
+    if (!cachedLocalDB.reports) cachedLocalDB.reports = [];
+    if (!cachedLocalDB.chats) cachedLocalDB.chats = [];
+    if (!cachedLocalDB.history) cachedLocalDB.history = [];
+    if (!cachedLocalDB.analytics) {
+      cachedLocalDB.analytics = { ...DEFAULT_DB.analytics };
+    } else {
+      if (typeof cachedLocalDB.analytics.aiUsageCount !== "number") {
+        cachedLocalDB.analytics.aiUsageCount = 0;
+      }
+    }
   } catch (error) {
     console.error("Local cache DB load failed, defaulting to memory representation", error);
     cachedLocalDB = DEFAULT_DB;
@@ -923,6 +936,7 @@ app.post("/api/chat/message", async (req, res) => {
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no");
     if (typeof res.flushHeaders === "function") {
       res.flushHeaders();
     }
@@ -1117,7 +1131,10 @@ async function start() {
       const firebaseConfig = JSON.parse(fs.readFileSync(configPath, "utf-8"));
       if (firebaseConfig && firebaseConfig.projectId) {
         const { initializeApp } = await import("firebase/app");
-        const { initializeFirestore, getDocFromServer, doc } = await import("firebase/firestore");
+        const { initializeFirestore, getDocFromServer, doc, setLogLevel } = await import("firebase/firestore");
+        
+        // Silence internal Firebase SDK connection cleanup warnings & idle timeouts
+        setLogLevel("error");
         
         const fApp = initializeApp(firebaseConfig);
         db = initializeFirestore(fApp, {

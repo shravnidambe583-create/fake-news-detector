@@ -28,8 +28,15 @@ export default function UserProfileModule({ user, reportsCount, onUpdateSuccess 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, avatar: avatarUrl })
       });
+      if (!response.ok) {
+        throw new Error(`HTTP error ${response.status}`);
+      }
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error("Response is not JSON");
+      }
       const data = await response.json();
-      if (response.ok && data.user) {
+      if (data.user) {
         onUpdateSuccess(data.user);
         setSuccess(true);
       }

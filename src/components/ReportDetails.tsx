@@ -19,12 +19,17 @@ export default function ReportDetails({ report, onBack, onDelete, onToggleFavori
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reportId: report.reportId })
       });
-      const data = await res.json();
-      if (res.ok) {
-        setFavorite(data.isFavorite);
-        report.isFavorite = data.isFavorite;
-        onToggleFavorite(report.reportId, data.isFavorite);
+      if (!res.ok) {
+        throw new Error(`HTTP error ${res.status}`);
       }
+      const contentType = res.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error("Response is not JSON");
+      }
+      const data = await res.json();
+      setFavorite(data.isFavorite);
+      report.isFavorite = data.isFavorite;
+      onToggleFavorite(report.reportId, data.isFavorite);
     } catch {
       alert("Error synchronizing profile favorites. Fallback local offline applied");
       setFavorite(!favorite);

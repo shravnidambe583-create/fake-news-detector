@@ -39,11 +39,29 @@ export default function AuthScreen({ onSuccess, onClose }: AuthScreenProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Authentication failed');
+        let errMsg = 'Authentication failed';
+        try {
+          const contentType = response.headers.get("content-type");
+          if (contentType && contentType.includes("application/json")) {
+            const errData = await response.json();
+            errMsg = errData.error || errMsg;
+          } else {
+            const errText = await response.text();
+            errMsg = errText || `HTTP error ${response.status}`;
+          }
+        } catch {
+          errMsg = `HTTP error ${response.status}`;
+        }
+        throw new Error(errMsg);
       }
+
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error("Response is not JSON");
+      }
+      const data = await response.json();
 
       setSuccessMsg(isSignUp ? 'Account registered successfully!' : 'Logged in successfully!');
       setTimeout(() => {

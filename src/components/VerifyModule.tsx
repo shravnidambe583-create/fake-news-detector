@@ -121,8 +121,15 @@ export default function VerifyModule({ onAnalysisSuccess, user }: VerifyModulePr
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ fileName: selectedFile.name, fileContent: excerpt?.substring(0, 500) })
         });
+        if (!res.ok) {
+          throw new Error(`HTTP error ${res.status}`);
+        }
+        const contentType = res.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+          throw new Error("Response is not JSON");
+        }
         const data = await res.json();
-        if (res.ok && data.text) {
+        if (data.text) {
           setExtractedDocText(data.text);
         } else {
           setExtractedDocText(`[Extracted text from doc: ${selectedFile.name}]\nDocument uploaded for analytical checks...`);
@@ -184,10 +191,24 @@ export default function VerifyModule({ onAnalysisSuccess, user }: VerifyModulePr
         })
       });
 
-      const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || "Misinformation audit failed on processing node.");
+        let errText = "Misinformation audit failed on processing node.";
+        try {
+          const contentType = res.headers.get("content-type");
+          if (contentType && contentType.includes("application/json")) {
+            const data = await res.json();
+            errText = data.error || errText;
+          }
+        } catch {}
+        throw new Error(errText);
       }
+
+      const contentType = res.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error("Response is not JSON format");
+      }
+
+      const data = await res.json();
 
       // Attach any server-supplied safety/key fallback warning
       const reportWithFallback = {

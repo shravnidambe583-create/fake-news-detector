@@ -18,7 +18,14 @@ export default function AdminPanel() {
 
   const fetchMetrics = () => {
     fetch('/api/admin/metrics')
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+        const contentType = res.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+          throw new Error("Response is not JSON");
+        }
+        return res.json();
+      })
       .then(data => {
         setHealth(data.systemHealth);
         setUsers(data.users);
@@ -26,7 +33,7 @@ export default function AdminPanel() {
         setReportsCount(data.reportsCount);
       })
       .catch((err) => {
-        console.error("Admin credentials or sandbox access limitations: ", err);
+        console.error("Admin credentials or sandbox access limitations: ", err.message);
       });
   };
 

@@ -23,7 +23,14 @@ export default function App() {
   // Authenticate user on startup
   useEffect(() => {
     fetch('/api/auth/me')
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+        const contentType = res.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+          throw new Error("Response is not JSON");
+        }
+        return res.json();
+      })
       .then(data => {
         if (data.user) {
           setUser(data.user);
@@ -32,7 +39,8 @@ export default function App() {
           setActiveTab('landing'); // otherwise landing page
         }
       })
-      .catch(() => {
+      .catch((err) => {
+        console.warn("Auth status check bypassed:", err.message);
         setActiveTab('landing');
       })
       .finally(() => {
@@ -43,12 +51,19 @@ export default function App() {
   // Fetch reports list
   const fetchReports = () => {
     fetch('/api/reports')
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+        const contentType = res.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+          throw new Error("Response is not JSON");
+        }
+        return res.json();
+      })
       .then(data => {
         if (data.reports) setReports(data.reports);
       })
       .catch(err => {
-        console.error("Failed fetching reports from workspace DB", err);
+        console.error("Failed fetching reports from workspace DB:", err.message);
       });
   };
 
@@ -83,12 +98,13 @@ export default function App() {
   const handleDeleteReport = async (reportId: string) => {
     try {
       const res = await fetch(`/api/reports/${reportId}`, { method: 'DELETE' });
-      if (res.ok) {
-        setReports(prev => prev.filter(r => r.reportId !== reportId));
-        if (selectedReport?.reportId === reportId) {
-          setSelectedReport(null);
-          setActiveTab('history');
-        }
+      if (!res.ok) {
+        throw new Error(`HTTP error ${res.status}`);
+      }
+      setReports(prev => prev.filter(r => r.reportId !== reportId));
+      if (selectedReport?.reportId === reportId) {
+        setSelectedReport(null);
+        setActiveTab('history');
       }
     } catch (e) {
       alert("Error deleting report from ledger");

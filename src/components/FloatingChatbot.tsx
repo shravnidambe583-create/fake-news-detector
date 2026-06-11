@@ -87,7 +87,13 @@ export default function FloatingChatbot({ user }: FloatingChatbotProps) {
             const dataStr = line.substring(6).trim();
             if (!dataStr) continue;
 
-            const parsed = JSON.parse(dataStr);
+            let parsed: any;
+            try {
+              parsed = JSON.parse(dataStr);
+            } catch (pErr) {
+              console.warn("Event Stream parsing check did not find JSON chunk:", dataStr, pErr);
+              continue;
+            }
             if (parsed.error) {
               throw new Error(parsed.message || "Failed during streaming");
             }
